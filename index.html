@@ -22,7 +22,7 @@
             border-radius: 8px;
             box-shadow: 0 4px 8px rgba(0,0,0,0.1);
         }
-        
+
         /* Nuove regole CSS per l'intestazione e il logo */
         .header-container {
             display: flex;
@@ -34,7 +34,7 @@
             max-width: 150px; /* Dimensione media */
             height: auto;
         }
-        
+
         h1, h2 {
             color: #0056b3;
             margin: 0; /* Rimosso il margine predefinito per un migliore allineamento */
@@ -141,7 +141,7 @@
     <!-- Intestazione con Titolo e Logo -->
     <div class="header-container">
         <h1>Calcolo Sistemi di Alimentazione Centralizzata</h1>
-        <img src="img/logo.svg" alt="Logo" class="logo">
+        <img src="img/Logo.svg" alt="Logo" class="logo">
     </div>
 
     <div class="setup-section">
@@ -203,14 +203,14 @@
                 <!-- Risultati generati dinamicamente -->
             </tbody>
         </table>
-        
+
         <button class="btn-success" onclick="esportaExcel()">Esporta in Excel</button>
     </div>
 </div>
 
 <script>
     const taglieRicevitori = [2, 4, 6, 10, 16, 25, 50, 75];
-    
+
     // Variabili globali per l'esportazione e il tracciamento
     let windowOriginalFileData = null; 
     let windowCalculatedResults = [];
@@ -288,7 +288,7 @@
 
             document.getElementById('numUtenze').value = parsedUtenze.length;
             generaTabella(parsedUtenze);
-            
+
             // Resetta l'input file per permettere un nuovo caricamento
             document.getElementById('fileUpload').value = ""; 
         };
@@ -472,7 +472,7 @@
         // Se non c'è un file originale (es. generato manualmente), creiamo le intestazioni base
         if (exportAoA.length === 0) {
             exportAoA.push(["Linea", "Nome Stazione", "Materiale", "Nota", "Densità app kg/dm3", "Consumo kg/h", "Distanza mt", "Volume", "Pulizia condotta", "Caricamenti n°/h"]);
-            
+
             windowCalculatedResults.forEach(res => {
                 let row = new Array(10).fill("");
                 row[0] = res.id;
@@ -489,7 +489,7 @@
             windowCalculatedResults.forEach(res => {
                 if (res.originalRowIndex !== -1 && res.originalRowIndex < exportAoA.length) {
                     let row = exportAoA[res.originalRowIndex];
-                    
+
                     // Assicuriamoci che l'array della riga arrivi fino alla colonna J (indice 9)
                     while (row.length <= 9) row.push("");
 
@@ -510,7 +510,7 @@
         const ws = XLSX.utils.aoa_to_sheet(exportAoA);
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, "Dimensionamento");
-        
+
         // Scarica il file modificato
         XLSX.writeFile(wb, "Dimensionamento_Alim_Centralizzata.xlsx");
     }
@@ -518,5 +518,4 @@
 
 </body>
 </html>
-
 ```
