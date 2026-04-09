@@ -1,1 +1,498 @@
-Prova
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calcolatore Alimentazione Centralizzata</title>
+    <!-- Inclusione libreria SheetJS per leggere e scrivere file Excel -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f7f6;
+            color: #333;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 950px;
+            margin: auto;
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        h1, h2 {
+            color: #0056b3;
+        }
+        .setup-section {
+            background-color: #eef2f5;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        .setup-row {
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+        input[type="number"], input[type="text"], input[type="file"] {
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        input[type="number"] {
+            width: 100px;
+        }
+        button {
+            padding: 10px 15px;
+            background-color: #0056b3;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        button:hover {
+            background-color: #004494;
+        }
+        .btn-success {
+            background-color: #28a745;
+            margin-top: 15px;
+        }
+        .btn-success:hover {
+            background-color: #218838;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            padding: 10px;
+            text-align: center;
+            border: 1px solid #ddd;
+        }
+        th {
+            background-color: #0056b3;
+            color: white;
+        }
+        input.table-input {
+            width: 80px;
+        }
+        #results {
+            margin-top: 30px;
+            padding: 15px;
+            background-color: #e9f5ff;
+            border-left: 5px solid #0056b3;
+            display: none;
+        }
+        .alert-warning {
+            color: #8a6d3b;
+            background-color: #fcf8e3;
+            border: 1px solid #faebcc;
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+            font-weight: bold;
+        }
+        .alert-danger {
+            color: #a94442;
+            background-color: #f2dede;
+            border: 1px solid #ebccd1;
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+            font-weight: bold;
+        }
+        .file-upload-box {
+            border: 2px dashed #0056b3;
+            padding: 15px;
+            text-align: center;
+            background-color: #f9f9f9;
+            border-radius: 5px;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Calcolo Sistemi di Alimentazione Centralizzata</h1>
+
+    <div class="setup-section">
+        <div class="setup-row">
+            <label for="maxCicliInput"><strong>Max Cicli Consentiti:</strong></label>
+            <input type="number" id="maxCicliInput" min="1" max="100" value="60">
+            <span id="cicliWarning" class="alert-warning" style="display:none; padding:5px; margin:0;"></span>
+        </div>
+
+        <div class="setup-row">
+            <label for="numUtenze"><strong>Numero di utenze da servire (Max 48):</strong></label>
+            <input type="number" id="numUtenze" min="1" max="48" value="1">
+            <button onclick="avviaManuale()">Genera Tabella Manualmente</button>
+        </div>
+
+        <div class="file-upload-box">
+            <strong>Oppure carica un file Excel/CSV:</strong><br><br>
+            <input type="file" id="fileUpload" accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel">
+            <p style="font-size: 12px; color: #666;">Il file deve contenere i dati in: Col B (Nome), Col E (Densità), Col F (Consumo), Col G (Distanza).</p>
+        </div>
+    </div>
+
+    <div id="inputSection" style="display:none;">
+        <h2>Dati Utenze</h2>
+        <table id="utenzeTable">
+            <thead>
+                <tr>
+                    <th>Utenza #</th>
+                    <th>Nome Stazione (Col B)</th>
+                    <th>Densità App. (kg/lt) (Col E)</th>
+                    <th>Consumo (kg/h) (Col F)</th>
+                    <th>Distanza (m) (Col G)</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Le righe verranno generate dinamicamente qui -->
+            </tbody>
+        </table>
+        <br>
+        <button onclick="calcolaSistema()">Calcola Ricevitori</button>
+    </div>
+
+    <div id="results">
+        <h2>Risultati del Calcolo</h2>
+        <div id="runtimeWarningMsg" class="alert-warning" style="display:none;"></div>
+        <p><strong>Cicli Totali del Sistema:</strong> <span id="totCycles"></span> / <span id="targetCyclesDisplay"></span></p>
+
+        <table id="resultsTable">
+            <thead>
+                <tr>
+                    <th>Utenza #</th>
+                    <th>Nome</th>
+                    <th>Consumo Vol. (lt/h)</th>
+                    <th>Volume Ricev. (lt) (Col H)</th>
+                    <th>Cicli/h (Col J)</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Risultati generati dinamicamente -->
+            </tbody>
+        </table>
+        
+        <button class="btn-success" onclick="esportaExcel()">Esporta in Excel</button>
+    </div>
+</div>
+
+<script>
+    const taglieRicevitori = [2, 4, 6, 10, 16, 25, 50, 75];
+    
+    // Variabili globali per l'esportazione e il tracciamento
+    let windowOriginalFileData = null; 
+    let windowCalculatedResults = [];
+
+    // Controllo input cicli on-the-fly
+    document.getElementById('maxCicliInput').addEventListener('input', function() {
+        const val = parseFloat(this.value);
+        const warningEl = document.getElementById('cicliWarning');
+
+        if (val > 70) {
+            warningEl.textContent = "ERRORE: Il numero massimo di cariche non può superare 70!";
+            warningEl.className = "alert-danger";
+            warningEl.style.display = 'inline-block';
+        } else if (val > 60 && val <= 70) {
+            warningEl.textContent = "Attenzione: Limite tra 60 e 70 cicli impostato. Rischio efficienza.";
+            warningEl.className = "alert-warning";
+            warningEl.style.display = 'inline-block';
+        } else {
+            warningEl.style.display = 'none';
+        }
+    });
+
+    // Gestione caricamento file Excel
+    document.getElementById('fileUpload').addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = function(event) {
+            const data = new Uint8Array(event.target.result);
+            const workbook = XLSX.read(data, {type: 'array'});
+            const firstSheetName = workbook.SheetNames[0];
+            const worksheet = workbook.Sheets[firstSheetName];
+
+            // Otteniamo una matrice 2D (Array of Arrays) per mantenere l'esatta riga/colonna
+            const aoa = XLSX.utils.sheet_to_json(worksheet, {header: 1, defval: ""});
+            windowOriginalFileData = aoa; 
+
+            let parsedUtenze = [];
+
+            // Analizziamo i dati (saltando l'intestazione presunta a riga 0)
+            for (let i = 1; i < aoa.length; i++) {
+                const row = aoa[i];
+                if (!row || row.length === 0) continue;
+
+                // Mappatura colonne: B=1, E=4, F=5, G=6
+                let nome = row[1] ? row[1].toString().trim() : "";
+                let densita = parseFloat(row[4]);
+                let consumo = parseFloat(row[5]);
+                let distanza = parseFloat(row[6]);
+
+                // Fallback nel caso in cui il CSV sia traslato (es. colonne D=3, E=4, F=5)
+                if (isNaN(densita) && !isNaN(parseFloat(row[3]))) densita = parseFloat(row[3]);
+                if (isNaN(consumo) && !isNaN(parseFloat(row[4]))) consumo = parseFloat(row[4]);
+                if (isNaN(distanza) && !isNaN(parseFloat(row[5]))) distanza = parseFloat(row[5]);
+
+                // Consideriamo valida la riga se consumo e densità sono presenti
+                if (!isNaN(densita) && !isNaN(consumo) && consumo > 0 && densita > 0) {
+                    parsedUtenze.push({
+                        originalRowIndex: i, // Memorizziamo la riga per aggiornare il file in esportazione
+                        nome: nome || `Stazione ${parsedUtenze.length + 1}`,
+                        densita: densita,
+                        consumo: consumo,
+                        distanza: isNaN(distanza) ? 0 : distanza
+                    });
+                }
+
+                if (parsedUtenze.length >= 48) break; // Limite massimo
+            }
+
+            if (parsedUtenze.length === 0) {
+                alert("Nessun dato valido trovato nel file. Verifica l'impaginazione.");
+                return;
+            }
+
+            document.getElementById('numUtenze').value = parsedUtenze.length;
+            generaTabella(parsedUtenze);
+            
+            // Resetta l'input file per permettere un nuovo caricamento
+            document.getElementById('fileUpload').value = ""; 
+        };
+        reader.readAsArrayBuffer(file);
+    });
+
+    function avviaManuale() {
+        // Se generiamo manualmente, svuotiamo la cache del file importato
+        windowOriginalFileData = null;
+        generaTabella();
+    }
+
+    function generaTabella(datiPrecaricati = null) {
+        const num = parseInt(document.getElementById('numUtenze').value);
+        if (num < 1 || num > 48 || isNaN(num)) {
+            alert("Inserisci un numero valido di utenze (da 1 a 48).");
+            return;
+        }
+
+        const tbody = document.querySelector('#utenzeTable tbody');
+        tbody.innerHTML = ''; // Pulisce la tabella
+
+        for (let i = 1; i <= num; i++) {
+            let defNome = `Stazione ${i}`;
+            let defDensita = 0.6;
+            let defConsumo = 10;
+            let defDistanza = 5;
+            let originalRow = -1;
+
+            if (datiPrecaricati && datiPrecaricati[i-1]) {
+                defNome = datiPrecaricati[i-1].nome;
+                defDensita = datiPrecaricati[i-1].densita;
+                defConsumo = datiPrecaricati[i-1].consumo;
+                defDistanza = datiPrecaricati[i-1].distanza;
+                originalRow = datiPrecaricati[i-1].originalRowIndex;
+            }
+
+            const tr = document.createElement('tr');
+            tr.setAttribute('data-original-row', originalRow); // Salva l'indice della riga excel
+            tr.innerHTML = `
+                <td>${i}</td>
+                <td><input type="text" class="table-input" id="nome_${i}" style="width: 120px;" value="${defNome}"></td>
+                <td><input type="number" class="table-input" id="densita_${i}" step="0.01" min="0.1" value="${defDensita}"></td>
+                <td><input type="number" class="table-input" id="consumo_${i}" step="1" min="1" value="${defConsumo}"></td>
+                <td><input type="number" class="table-input" id="distanza_${i}" step="1" min="0" value="${defDistanza}"></td>
+            `;
+            tbody.appendChild(tr);
+        }
+
+        document.getElementById('inputSection').style.display = 'block';
+        document.getElementById('results').style.display = 'none';
+        windowCalculatedResults = []; // Resetta i risultati passati
+    }
+
+    function calcolaSistema() {
+        const maxCicliImpostati = parseFloat(document.getElementById('maxCicliInput').value);
+
+        if (maxCicliImpostati > 70) {
+            alert("Operazione bloccata! Il numero di cariche massime inserito è superiore a 70.");
+            return;
+        }
+
+        const num = parseInt(document.getElementById('numUtenze').value);
+        let utenze = [];
+
+        for (let i = 1; i <= num; i++) {
+            const nome = document.getElementById(`nome_${i}`).value;
+            const densita = parseFloat(document.getElementById(`densita_${i}`).value);
+            const consumo = parseFloat(document.getElementById(`consumo_${i}`).value);
+            const distanza = parseFloat(document.getElementById(`distanza_${i}`).value);
+            const tr = document.getElementById(`nome_${i}`).closest('tr');
+            const originalRowIndex = tr.getAttribute('data-original-row');
+
+            if (isNaN(densita) || isNaN(consumo) || densita <= 0 || consumo <= 0) {
+                alert(`Dati non validi per l'utenza ${i}. Controlla i valori inseriti.`);
+                return;
+            }
+
+            utenze.push({
+                id: i,
+                originalRowIndex: parseInt(originalRowIndex),
+                nome: nome,
+                densita: densita,
+                consumo: consumo,
+                distanza: distanza,
+                consumoVolumetrico: consumo / densita,
+                tagliaIndex: 0 // Partiamo dalla taglia più piccola
+            });
+        }
+
+        let cicliTotali = 0;
+        let iterazioniSafety = 0;
+
+        // Ottimizza i volumi per rispettare il maxCicliImpostati
+        while (iterazioniSafety < 1000) {
+            cicliTotali = 0;
+            let maxCicli = -1;
+            let indexMaxCicli = -1;
+
+            for (let i = 0; i < utenze.length; i++) {
+                const cicli = utenze[i].consumoVolumetrico / taglieRicevitori[utenze[i].tagliaIndex];
+                cicliTotali += cicli;
+
+                if (cicli > maxCicli && utenze[i].tagliaIndex < taglieRicevitori.length - 1) {
+                    maxCicli = cicli;
+                    indexMaxCicli = i;
+                }
+            }
+
+            if (cicliTotali <= maxCicliImpostati) {
+                break;
+            }
+            if (indexMaxCicli === -1) {
+                break; // Tutte le stazioni sono alla taglia massima
+            }
+
+            utenze[indexMaxCicli].tagliaIndex++;
+            iterazioniSafety++;
+        }
+
+        // Prepara visualizzazione e salvataggio risultati
+        document.getElementById('totCycles').textContent = cicliTotali.toFixed(2);
+        document.getElementById('targetCyclesDisplay').textContent = maxCicliImpostati;
+
+        const runtimeWarningMsg = document.getElementById('runtimeWarningMsg');
+        runtimeWarningMsg.style.display = 'none';
+
+        if (cicliTotali > maxCicliImpostati) {
+            runtimeWarningMsg.innerHTML = `<strong>ATTENZIONE:</strong> Anche utilizzando i ricevitori massimi, i cicli totali (${cicliTotali.toFixed(2)}) superano il limite di ${maxCicliImpostati}.`;
+            runtimeWarningMsg.className = "alert-danger";
+            runtimeWarningMsg.style.display = 'block';
+        } else if (maxCicliImpostati > 60 && maxCicliImpostati <= 70) {
+            runtimeWarningMsg.innerHTML = "<strong>Nota:</strong> Stai operando nel limite di tolleranza allargato (60-70 cicli).";
+            runtimeWarningMsg.className = "alert-warning";
+            runtimeWarningMsg.style.display = 'block';
+        }
+
+        const tbodyResults = document.querySelector('#resultsTable tbody');
+        tbodyResults.innerHTML = '';
+        windowCalculatedResults = [];
+
+        utenze.forEach(u => {
+            const volumeAssegnato = taglieRicevitori[u.tagliaIndex];
+            const cicli = (u.consumoVolumetrico / volumeAssegnato).toFixed(2);
+
+            // Salvataggio per esportazione Excel
+            windowCalculatedResults.push({
+                id: u.id,
+                originalRowIndex: u.originalRowIndex,
+                nome: u.nome,
+                densita: u.densita,
+                consumo: u.consumo,
+                distanza: u.distanza,
+                volume: volumeAssegnato,
+                cicli: parseFloat(cicli)
+            });
+
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td>${u.id}</td>
+                <td>${u.nome}</td>
+                <td>${u.consumoVolumetrico.toFixed(2)}</td>
+                <td><strong>${volumeAssegnato}</strong></td>
+                <td>${cicli}</td>
+            `;
+            tbodyResults.appendChild(tr);
+        });
+
+        document.getElementById('results').style.display = 'block';
+    }
+
+    function esportaExcel() {
+        if (windowCalculatedResults.length === 0) {
+            alert("Nessun risultato da esportare. Esegui prima il calcolo.");
+            return;
+        }
+
+        // Cloniamo l'array originale (se esiste) per non alterarlo in memoria
+        let exportAoA = windowOriginalFileData ? JSON.parse(JSON.stringify(windowOriginalFileData)) : [];
+
+        // Se non c'è un file originale (es. generato manualmente), creiamo le intestazioni base
+        if (exportAoA.length === 0) {
+            exportAoA.push(["Linea", "Nome Stazione", "Materiale", "Nota", "Densità app kg/dm3", "Consumo kg/h", "Distanza mt", "Volume", "Pulizia condotta", "Caricamenti n°/h"]);
+            
+            windowCalculatedResults.forEach(res => {
+                let row = new Array(10).fill("");
+                row[0] = res.id;
+                row[1] = res.nome;
+                row[4] = res.densita;
+                row[5] = res.consumo;
+                row[6] = res.distanza;
+                row[7] = res.volume;
+                row[9] = res.cicli;
+                exportAoA.push(row);
+            });
+        } else {
+            // Aggiorniamo le righe esistenti usando la referenza originalRowIndex
+            windowCalculatedResults.forEach(res => {
+                if (res.originalRowIndex !== -1 && res.originalRowIndex < exportAoA.length) {
+                    let row = exportAoA[res.originalRowIndex];
+                    
+                    // Assicuriamoci che l'array della riga arrivi fino alla colonna J (indice 9)
+                    while (row.length <= 9) row.push("");
+
+                    // Aggiorniamo i dati della riga (anche se l'utente li ha editati nella tabella HTML!)
+                    row[1] = res.nome;
+                    row[4] = res.densita;
+                    row[5] = res.consumo;
+                    row[6] = res.distanza;
+
+                    // Inseriamo i dati calcolati in Colonna H (7) e Colonna J (9)
+                    row[7] = res.volume;
+                    row[9] = res.cicli;
+                }
+            });
+        }
+
+        // Creazione file ed esportazione
+        const ws = XLSX.utils.aoa_to_sheet(exportAoA);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Dimensionamento");
+        
+        // Scarica il file modificato
+        XLSX.writeFile(wb, "Dimensionamento_Alim_Centralizzata.xlsx");
+    }
+</script>
+
+</body>
+</html>
